@@ -111,7 +111,7 @@ def is_valid(url):
         if host_name == "archive.ics.uci.edu":
             return False
         
-        # filters out grape
+        # grape is a server with login errors that we don't have 
         if "grape.ics.uci.edu" in host_name:
             return False
 
@@ -132,7 +132,7 @@ def is_valid(url):
         if BAD_EXTENSIONS.match(path):
             return False
         
-        # don't include the wiki because it never ends
+        # don't include the wiki because of 403 permission error
         if "doku.php" in path:
             return False
 
