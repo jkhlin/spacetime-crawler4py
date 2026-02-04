@@ -142,6 +142,10 @@ def is_valid(url):
         if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|idx|view|expanded|sort)=", url):
             return False
             
+        # block event directories
+        if "/event/" in path or "/events/" in path:
+            return False
+        
         # 1. block Eppstein's pictures
         if re.search(r"/~eppstein/pix/", path):
             return False
