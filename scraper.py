@@ -131,7 +131,7 @@ def is_valid(url):
         query = (parsed.query or "").lower()
 
         # wiki block
-        if re.search(r"(^|&)(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|view|expanded|sort)=", query):
+        if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|idx|view|expanded|sort)=", url):
             return False
             
         # blocks specific dynamic endpoints that aren't web pages
