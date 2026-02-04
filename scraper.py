@@ -25,7 +25,23 @@ def is_valid(url):
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
-        return not re.match(
+        
+        # blocks UCI Machine Learning Repository given in discussion slides
+        if "archive.ics.uci.edu" in parsed.netloc:
+            return False
+            
+        # block dataset related to big machine learning files
+        if "datasets" in parsed.path.lower():
+            return False
+                    
+        # match the 4 specified UCI domains and their subdomains
+        if not re.match(r"^(?:.*\.)?(?:ics|cs|informatics|stat)\.uci\.edu$", parsed.netloc):
+            return False
+
+        # trap prevention rules
+        
+        # block file extensions
+        if re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -33,7 +49,27 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
+            return False
+
+        # wiki block
+        if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom)=", url):
+            return False
+            
+        # blocks specific dynamic endpoints that aren't web pages
+        if re.search(r"/(api|feed|rss|atom|xmlrpc|wp-json|wp-content|wp-includes)/", parsed.path.lower()):
+            return False
+
+        # C. REPEATING DIRECTORY TRAPS
+        # catches repeating directories that repeats 3+ times
+        if re.search(r"^.*?(/.+?/).*?\1.*?\1.*?$", parsed.path):
+            return False
+            
+        # calendar blocks for infinite date loops
+        if re.search(r"(^|/)calendar(/|$|\.)", parsed.path.lower()):
+            return False
+
+        return True
 
     except TypeError:
         print ("TypeError for ", parsed)
