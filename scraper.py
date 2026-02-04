@@ -1,6 +1,21 @@
 import re
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urldefrag
+
+# Matches only the allowed UCI department domains (ics, cs, informatics, stat),
+# including any subdomains (e.g., vision.ics.uci.edu), and nothing outside uci.edu.
+ALLOWED_HOST_NAMES = re.compile(r"^(?:.*\.)?(?:ics|cs|informatics|stat)\.uci\.edu$", re.IGNORECASE)
+
+BAD_EXTENSIONS = re.compile(
+            r".*\.(css|js|bmp|gif|jpe?g|ico"
+            + r"|png|tiff?|mid|mp2|mp3|mp4"
+            + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
+            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+            + r"|epub|dll|cnf|tgz|sha1"
+            + r"|thmx|mso|arff|rtf|jar|csv"
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", re.IGNORECASE
+)
 
 def scraper(url, resp):
     # make sure status code is good or else early return
@@ -70,55 +85,66 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
+        
+        # Remove fragment per assignment spec
+        url, _ = urldefrag(url)
+        
         parsed = urlparse(url)
+
+        # scheme validation 
         if parsed.scheme not in set(["http", "https"]):
             return False
         
-        # blocks UCI Machine Learning Repository given in discussion slides
-        if "archive.ics.uci.edu" in parsed.netloc:
-            return False
-            
-        # block dataset related to big machine learning files
-        if "datasets" in parsed.path.lower():
-            return False
-                    
-        # match the 4 specified UCI domains and their subdomains
-        if not re.match(r"^(?:.*\.)?(?:ics|cs|informatics|stat)\.uci\.edu$", parsed.netloc):
+        # Gets URL hostname or set to empty if None
+        host_name = (parsed.hostname or "").lower()
+
+        # If empty string -> false 
+        if not host_name:
             return False
 
-        # trap prevention rules
-        
-        # block file extensions
-        if re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
-            + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
-            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-            + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
+        # allowed domains only
+        # match the 4 specified UCI domains and their subdomains
+        if not ALLOWED_HOST_NAMES.match(host_name):
             return False
+        
+        # blocks UCI Machine Learning Repository given in discussion slides
+        if host_name == "archive.ics.uci.edu":
+            return False
+
+        ### Trap Prevention Rules ### 
+
+        # Gets URL path or set to empty string if None
+        path = (parsed.path or "").lower()
+
+        # Block bad file extensions
+        if BAD_EXTENSIONS.match(path):
+            return False
+        
+        # Block dataset directories (avoid large downloads)
+        if re.search(r"/datasets?/", path):
+            return False
+        # Gets URL query or set to empty string if None
+        query = (parsed.query or "").lower()
 
         # wiki block
-        if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom)=", url):
+        if re.search(r"(^|&)(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom)=", query):
             return False
             
         # blocks specific dynamic endpoints that aren't web pages
-        if re.search(r"/(api|feed|rss|atom|xmlrpc|wp-json|wp-content|wp-includes)/", parsed.path.lower()):
+        if re.search(r"/(api|feed|rss|atom|xmlrpc|wp-json|wp-content|wp-includes)/", path):
             return False
 
         # catches repeating directories that repeats 3+ times
-        if re.search(r"^.*?(/.+?/).*?\1.*?\1.*?$", parsed.path):
+        if re.search(r"^.*?(/.+?/).*?\1.*?\1.*?$", path):
             return False
             
         # calendar blocks for infinite date loops
         # blocks YYYY-MM-DD or YYYY-MM patterns in the URL
-        if re.search(r"\d{4}-\d{2}(-\d{2})?", parsed.path):
+        if re.search(r"\d{4}-\d{2}(-\d{2})?", path):
             return False
         
         # blocks paths specifically ending in numbers usually dates
-        if re.search(r"/(19|20)\d{2}(-\d{2})?(/|$)", parsed.path):
+        if re.search(r"/(19|20)\d{2}(-\d{2})?(/|$)", path):
             return False
 
         return True
