@@ -17,14 +17,52 @@ BAD_EXTENSIONS = re.compile(
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", re.IGNORECASE
 )
 
+# Thresholds for valid pages
+MIN_CONTENT_LENGTH = 100        # Minimum bytes
+MAX_CONTENT_LENGTH = 10_000_000 # 10MB max
+MIN_WORD_COUNT = 50             # Minimum words for "high information" page
+
+
 def scraper(url, resp):
     # make sure status code is good or else early return
     if resp.status != 200:
         return []
     
-    if resp.raw_response and resp.raw_response.content:
-        # TODO: update_word_counts(url, resp.raw_response.content)
-        pass
+    # Check for empty or missing content (dead URLs with 200 status)
+    if not resp.raw_response or not resp.raw_response.content:
+        return []
+    
+    content = resp.raw_response.content
+    
+    # Avoid very large files
+    if len(content) > MAX_CONTENT_LENGTH:
+        print(f"Skipping large file ({len(content)} bytes): {url}")
+        return []
+    
+    # Avoid very small files (likely empty or error pages)
+    if len(content) < MIN_CONTENT_LENGTH:
+        print(f"Skipping small file ({len(content)} bytes): {url}")
+        return []
+    
+    try:
+        soup = BeautifulSoup(content, 'lxml')
+        
+        # Remove non-content elements and get text
+        for element in soup(["script", "style", "noscript"]):
+            element.decompose()
+        text = soup.get_text(separator=' ', strip=True)
+        
+        # Count words (simple split)
+        words = text.split()
+        
+        # Check for low information content
+        if len(words) < MIN_WORD_COUNT:
+            print(f"Skipping low-content page ({len(words)} words): {url}")
+            return []
+        
+    except Exception as e:
+        print(f"Error processing {url}: {e}")
+        return []
 
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
@@ -142,11 +180,21 @@ def is_valid(url):
         # Gets URL query or set to empty string if None
         query = (parsed.query or "").lower()
 
-        # wiki block
-        if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|idx|view|expanded|sort)=", url):
+        # Block Apache directory listing sort parameters (trap)
+        # e.g., ?C=N;O=D, ?C=M;O=A - these are the same content with different sort orders
+        # Use (^|...) to also match at the start of the query string
+        if re.search(r"(^|[&;])(c|o)=", query):
+            return False
+
+        # Block calendar/event related query parameters (infinite trap)
+        if re.search(r"(^|[&])(ical|outlook-ical|eventdisplay|tribe)=", query):
+            return False
+
+        # wiki and CMS action parameters block
+        if re.search(r"(^|[&])(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|idx|view|expanded|sort)=", query):
             return False
             
-        # block event directories
+        # block event directories (calendar traps)
         if "/event/" in path or "/events/" in path:
             return False
         
@@ -167,8 +215,16 @@ def is_valid(url):
         if re.search(r"\d{4}-\d{2}(-\d{2})?", path):
             return False
         
+        # blocks MM-DD patterns often found in event URLs (e.g., /event/something-11-21)
+        if re.search(r"-\d{1,2}-\d{1,2}$", path):
+            return False
+        
         # blocks paths specifically ending in numbers usually dates
         if re.search(r"/(19|20)\d{2}(-\d{2})?(/|$)", path):
+            return False
+        
+        # Block pagination traps (page/2, page/3, etc.) in list contexts
+        if re.search(r"/page/\d+", path):
             return False
 
         return True
