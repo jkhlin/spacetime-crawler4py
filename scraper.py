@@ -138,6 +138,10 @@ def is_valid(url):
         if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|idx|view|expanded|sort)=", url):
             return False
             
+        # 1. block Eppstein's pictures
+        if re.search(r"/~eppstein/pix/", path):
+            return False
+        
         # blocks specific dynamic endpoints that aren't web pages
         if re.search(r"/(api|feed|rss|atom|xmlrpc|wp-json|wp-content|wp-includes)/", path):
             return False
