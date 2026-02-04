@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urldefrag
 
 # Matches only the allowed UCI department domains (ics, cs, informatics, stat),
 # including any subdomains (e.g., vision.ics.uci.edu), and nothing outside uci.edu.
@@ -37,6 +37,10 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
+        
+        # Remove fragment per assignment spec
+        url, _ = urldefrag(url)
+        
         parsed = urlparse(url)
 
         # scheme validation 
@@ -75,7 +79,7 @@ def is_valid(url):
         query = (parsed.query or "").lower()
 
         # wiki block
-        if re.search(r"[?&](action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom)=", query):
+        if re.search(r"(^|&)(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom)=", query):
             return False
             
         # blocks specific dynamic endpoints that aren't web pages
