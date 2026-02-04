@@ -60,7 +60,6 @@ def is_valid(url):
         if re.search(r"/(api|feed|rss|atom|xmlrpc|wp-json|wp-content|wp-includes)/", parsed.path.lower()):
             return False
 
-        # C. REPEATING DIRECTORY TRAPS
         # catches repeating directories that repeats 3+ times
         if re.search(r"^.*?(/.+?/).*?\1.*?\1.*?$", parsed.path):
             return False
