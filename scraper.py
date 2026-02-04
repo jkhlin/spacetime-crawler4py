@@ -115,6 +115,10 @@ def is_valid(url):
         if "gitlab" in host_name:
             return False
 
+        # block ngs (WordPress Login trap)
+        if "ngs.ics.uci.edu" in host_name:
+            return False
+
         ### Trap Prevention Rules ### 
 
         # Gets URL path or set to empty string if None
