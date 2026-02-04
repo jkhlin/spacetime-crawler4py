@@ -1,3 +1,5 @@
+# TODO: delete when done
+
 from scraper import is_valid
 
 print(is_valid("http://www.ics.uci.edu/"))
