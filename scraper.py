@@ -1,7 +1,16 @@
 import re
-from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 def scraper(url, resp):
+    # make sure status code is good or else early return
+    if resp.status != 200:
+        return []
+    
+    if resp.raw_response and resp.raw_response.content:
+        # TODO: update_word_counts(url, resp.raw_response.content)
+        pass
+
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
@@ -15,7 +24,46 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+    
+    links = []
+        
+    # we actually have page content to parse
+    if resp.status != 200 or not resp.raw_response or not resp.raw_response.content:
+        return links
+        
+    try:
+        soup = BeautifulSoup(resp.raw_response.content, 'lxml')
+        
+        # extract links
+        for tag in soup.find_all('a', href=True): # href=True filters out <a> tags without href
+            href = tag['href'].strip()
+            
+            # skip empty links
+            if not href:
+                continue
+                
+            # filter non-navigation links
+            if href.startswith(("javascript:", "mailto:", "tel:")) or href == "#":
+                continue
+
+            # defragmentation to remove the '#' part ("page.html#section" -> "page.html")
+            href = href.split('#')[0]
+            if not href: # if it was just #section, it becomes empty after split
+                continue
+
+            # absolute URL conversion
+            full_url = urljoin(url, href)
+            
+            # ensure we only keep http/https links
+            parsed_url = urlparse(full_url)
+            if parsed_url.scheme in ["http", "https"]:
+                links.append(full_url)
+                    
+    except Exception as e:
+        # if parsing fails print error but don't crash the crawler
+        print(f"Error parsing {url}: {e}")
+        
+    return links
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
