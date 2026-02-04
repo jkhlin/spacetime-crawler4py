@@ -87,7 +87,12 @@ def is_valid(url):
             return False
             
         # calendar blocks for infinite date loops
-        if re.search(r"(^|/)calendar(/|$|\.)", path):
+        # blocks YYYY-MM-DD or YYYY-MM patterns in the URL
+        if re.search(r"\d{4}-\d{2}(-\d{2})?", path):
+            return False
+        
+        # blocks paths specifically ending in numbers usually dates
+        if re.search(r"/(19|20)\d{2}(-\d{2})?(/|$)", path):
             return False
 
         return True
