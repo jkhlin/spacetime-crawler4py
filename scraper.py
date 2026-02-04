@@ -111,6 +111,10 @@ def is_valid(url):
         if host_name == "archive.ics.uci.edu":
             return False
 
+        # blocks gitlab domains to infinite number of urls
+        if "gitlab" in host_name:
+            return False
+
         ### Trap Prevention Rules ### 
 
         # Gets URL path or set to empty string if None
@@ -127,7 +131,7 @@ def is_valid(url):
         query = (parsed.query or "").lower()
 
         # wiki block
-        if re.search(r"(^|&)(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom)=", query):
+        if re.search(r"(^|&)(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|view|expanded|sort)=", query):
             return False
             
         # blocks specific dynamic endpoints that aren't web pages
