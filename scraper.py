@@ -111,6 +111,10 @@ def is_valid(url):
         if host_name == "archive.ics.uci.edu":
             return False
 
+        # filters out grape
+        if "grape.ics.uci.edu" in host_name:
+            return False
+
         # blocks gitlab domains to infinite number of urls
         if "gitlab" in host_name:
             return False
