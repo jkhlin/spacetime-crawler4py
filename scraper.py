@@ -170,13 +170,14 @@ def is_valid(url):
         if BAD_EXTENSIONS.match(path):
             return False
         
-        # don't include the wiki because of 403 permission error
-        if "doku.php" in path:
+        # don't include the wiki because of internal admin pages with no value
+        if "doku.php/group:" in path or "doku.php/support:" in path:
             return False
 
-        # Block dataset directories (avoid large downloads)
+        # block dataset directories (avoid large downloads)
         if re.search(r"/datasets?/", path):
             return False
+        
         # Gets URL query or set to empty string if None
         query = (parsed.query or "").lower()
 
