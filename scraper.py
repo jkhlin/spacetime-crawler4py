@@ -6,6 +6,15 @@ from urllib.parse import urljoin, urlparse, urldefrag
 # including any subdomains (e.g., vision.ics.uci.edu), and nothing outside uci.edu.
 ALLOWED_HOST_NAMES = re.compile(r"^(?:.*\.)?(?:ics|cs|informatics|stat)\.uci\.edu$", re.IGNORECASE)
 
+NON_CONTENT_ELEMENTS = [
+    'script', 'style', 'noscript', 'link', 'meta', 'base',
+    'nav', 'header', 'footer', 'aside', 'menu',
+    'form', 'input', 'button', 'select', 'textarea', 'label', 'datalist', 'output',
+    'iframe', 'svg', 'canvas', 'template', 'dialog',
+    'object', 'embed', 'applet', 'video', 'audio', 'track',
+    'picture', 'source', 'map', 'area', 'param'
+]
+
 BAD_EXTENSIONS = re.compile(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -34,12 +43,13 @@ def scraper(url, resp):
     
     content = resp.raw_response.content
     
-    # Avoid very large files
+    # valid webpage are often at max around 3-5 MB, so 10MB is a safe upper bound to avoid large non-webpage files
+    # but not accidently filter out valid pages with lots of content
     if len(content) > MAX_CONTENT_LENGTH:
         print(f"Skipping large file ({len(content)} bytes): {url}")
         return []
     
-    # Avoid very small files (likely empty or error pages)
+    # avoid very small files (likely empty or error pages)
     if len(content) < MIN_CONTENT_LENGTH:
         print(f"Skipping small file ({len(content)} bytes): {url}")
         return []
@@ -48,7 +58,7 @@ def scraper(url, resp):
         soup = BeautifulSoup(content, 'lxml')
         
         # Remove non-content elements and get text
-        for element in soup(["script", "style", "noscript"]):
+        for element in soup(NON_CONTENT_ELEMENTS):
             element.decompose()
         text = soup.get_text(separator=' ', strip=True)
         
@@ -148,19 +158,11 @@ def is_valid(url):
         # blocks UCI Machine Learning Repository given in discussion slides
         if host_name == "archive.ics.uci.edu":
             return False
-        
-        # grape is a server with login errors that we don't have 
-        if "grape.ics.uci.edu" in host_name:
-            return False
-
+                    
         # blocks gitlab domains to infinite number of urls
         if "gitlab" in host_name:
             return False
-
-        # block ngs (WordPress Login trap)
-        if "ngs.ics.uci.edu" in host_name:
-            return False
-
+            
         ### Trap Prevention Rules ### 
 
         # Gets URL path or set to empty string if None
@@ -190,6 +192,23 @@ def is_valid(url):
         # Block calendar/event related query parameters (infinite trap)
         if re.search(r"(^|[&])(ical|outlook-ical|eventdisplay|tribe)=", query):
             return False
+        
+        # grape is a server with login errors that we don't have 
+        if "grape.ics.uci.edu" in host_name:
+            # timeline is an infinite calendar trap
+            if "timeline" in path or "timeline" in query:
+                return False
+            # attachments are often binary files or code archives
+            if "attachment" in path or "raw-attachment" in path:
+                return False
+
+        # block ngs (WordPress Login trap) but should allow blog posts and other content
+        if "ngs.ics.uci.edu" in host_name:
+            if "wp-login.php" in path:
+                return False
+            # also block the 'redirect_to' parameter just in case
+            if "redirect_to=" in query:
+                return False
 
         # wiki and CMS action parameters block
         if re.search(r"(^|[&])(action|do|export|share|type|format|rev|rev2|image|diff|oldid|replytocom|idx|view|expanded|sort)=", query):
