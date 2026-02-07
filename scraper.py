@@ -154,15 +154,7 @@ def is_valid(url):
         # match the 4 specified UCI domains and their subdomains
         if not ALLOWED_HOST_NAMES.match(host_name):
             return False
-        
-        # blocks UCI Machine Learning Repository given in discussion slides
-        if host_name == "archive.ics.uci.edu":
-            return False
                     
-        # blocks gitlab domains to infinite number of urls
-        if "gitlab" in host_name:
-            return False
-            
         ### Trap Prevention Rules ### 
 
         # Gets URL path or set to empty string if None
@@ -208,6 +200,16 @@ def is_valid(url):
                 return False
             # also block the 'redirect_to' parameter just in case
             if "redirect_to=" in query:
+                return False
+
+        # blocks UCI Machine Learning Repository given in discussion slides
+        if "archive.ics.uci.edu" in host_name:
+            if "ml/machine-learning-databases" in path or "/dataset/" in path:
+                return False
+                        
+        # blocks gitlab domains to infinite number of urls
+        if "gitlab" in host_name:
+            if re.search(r"/(tree|blob|blame|raw|commits?|graph|network|compare|pipelines|jobs?|archive)/", path):
                 return False
 
         # wiki and CMS action parameters block
