@@ -1,6 +1,7 @@
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse, urldefrag
+import analytics
 
 # Matches only the allowed UCI department domains (ics, cs, informatics, stat),
 # including any subdomains (e.g., vision.ics.uci.edu), and nothing outside uci.edu.
@@ -73,6 +74,9 @@ def scraper(url, resp):
     except Exception as e:
         print(f"Error processing {url}: {e}")
         return []
+
+    # Record analytics for this page
+    analytics.record_page(url, resp)
 
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
