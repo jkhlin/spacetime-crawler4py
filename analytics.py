@@ -98,7 +98,7 @@ def tokenize(text):
     # Find all sequences of alphabetic characters
     tokens = re.findall(r'[a-zA-Z]+', text.lower())
     # Filter by minimum length
-    return [token for token in tokens if len(token) >= 2]
+    return [token for token in tokens if len(token) > 3]
 
 
 def count_words(text):
