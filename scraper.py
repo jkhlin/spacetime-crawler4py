@@ -147,7 +147,7 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
         
-        # Gets URL hostname or set to empty if None
+        # gets URL hostname or set to empty if None
         host_name = (parsed.hostname or "").lower()
 
         # If empty string -> false 
@@ -161,10 +161,10 @@ def is_valid(url):
                     
         ### Trap Prevention Rules ### 
 
-        # Gets URL path or set to empty string if None
+        # gets URL path or set to empty string if None
         path = (parsed.path or "").lower()
 
-        # Block bad file extensions
+        # block bad file extensions
         if BAD_EXTENSIONS.match(path):
             return False
         
@@ -176,10 +176,10 @@ def is_valid(url):
         if re.search(r"/datasets?/", path):
             return False
         
-        # Gets URL query or set to empty string if None
+        # gets URL query or set to empty string if None
         query = (parsed.query or "").lower()
 
-        # Block Apache directory listing sort parameters (trap)
+        # block Apache directory listing sort parameters (trap)
         # e.g., ?C=N;O=D, ?C=M;O=A - these are the same content with different sort orders
         # Use (^|...) to also match at the start of the query string
         if re.search(r"(^|[&;])(c|o)=", query):
@@ -224,7 +224,7 @@ def is_valid(url):
         if "/event/" in path or "/events/" in path:
             return False
         
-        # 1. block Eppstein's pictures
+        # block Eppstein's pictures
         if re.search(r"/~eppstein/pix/", path):
             return False
         
@@ -249,7 +249,7 @@ def is_valid(url):
         if re.search(r"/(19|20)\d{2}(-\d{2})?(/|$)", path):
             return False
         
-        # Block pagination traps (page/2, page/3, etc.) in list contexts
+        # block pagination traps (page/2, page/3, etc.) in list contexts
         if re.search(r"/page/\d+", path):
             return False
 
