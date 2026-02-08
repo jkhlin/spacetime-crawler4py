@@ -60,6 +60,9 @@ def load_stopwords():
                     _stopwords.add(word)
     except FileNotFoundError:
         print(f"Warning: stopwords.txt not found at {stopwords_path}")
+
+    # Add common HTML entities/noise tokens
+    _stopwords.update({"nbsp", "amp", "quot", "lt", "gt"})
     
     return _stopwords
 
@@ -92,13 +95,20 @@ def tokenize(text):
     Rules:
     - Lowercase
     - Alphabetic characters only
-    - Minimum length of 2
+    - Minimum length of 3
+    - Drop low-information tokens (e.g., cccc, ccoc, ccn)
     Returns list of tokens.
     """
-    # Find all sequences of alphabetic characters
-    tokens = re.findall(r'[a-zA-Z]+', text.lower())
-    # Filter by minimum length
-    return [token for token in tokens if len(token) > 3]
+    # Find all sequences of alphabetic characters (length >= 3)
+    tokens = re.findall(r'[a-zA-Z]{3,}', text.lower())
+    filtered = []
+    for token in tokens:
+        # Drop tokens with only 1-2 unique letters and short length
+        # Examples: ccc, cccc, ccn, ccoc
+        if len(token) <= 5 and len(set(token)) <= 2:
+            continue
+        filtered.append(token)
+    return filtered
 
 
 def count_words(text):
@@ -195,19 +205,28 @@ def record_page(url, resp):
         try:
             html_content = resp.raw_response.content
             text = get_visible_text(html_content)
-            
-            # Count words for longest page
-            word_count = count_words(text)
-            
+
+            # Tokenize once for all metrics
+            tokens = tokenize(text)
+            word_count = len(tokens)
+
+            # Skip low-information pages (very low lexical diversity)
+            # Helps avoid dataset pages like randomSmiles dominating top words
+            if word_count >= 2000:
+                unique_ratio = len(set(tokens)) / max(word_count, 1)
+                if unique_ratio < 0.05:
+                    return
+
+            # Update longest page
             if word_count > longest_page_word_count:
                 longest_page_word_count = word_count
                 longest_page_url = defragged_url
-            
+
             # Update word frequencies (excluding stopwords)
             stopwords = load_stopwords()
-            frequencies = get_word_frequencies(text, stopwords)
-            word_frequency.update(frequencies)
-            
+            filtered_tokens = [t for t in tokens if t not in stopwords]
+            word_frequency.update(filtered_tokens)
+
         except Exception as e:
             print(f"Error processing page {url}: {e}")
 
